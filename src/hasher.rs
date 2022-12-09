@@ -22,7 +22,7 @@ pub enum Endian {
     Little,
 }
 
-pub fn md_padding(message_length: usize, endian: Endian) -> Vec<u8> {
+fn md_padding(block_size: usize, message_length: usize, endian: Endian) -> Vec<u8> {
     // Message length is in bytes.
     let length_in_bits: u64 = (message_length * 8) as u64;
     let length_in_bytes: [u8; 8];
@@ -32,13 +32,28 @@ pub fn md_padding(message_length: usize, endian: Endian) -> Vec<u8> {
     }
 
     // Padding in bytes.
-    let zeros_to_pad: usize = 64 - ((message_length + 1 + 8) % 64);
+    let remainder = (message_length + 1 + 8) % block_size;
+    let mut zeros_to_pad = 0;
+
+    // Checks edge case if there are no zeros to pad when the message length and
+    // appended bit fill available slots.
+    if remainder > 0 {
+        zeros_to_pad = block_size - remainder;
+    }
 
     // Append 1 bit and then add the rest of the padding.
     let mut preprocessed_bytes: Vec<u8> = vec![1 << 7];
     preprocessed_bytes.extend(vec![0; zeros_to_pad]);
     preprocessed_bytes.extend(length_in_bytes);
     preprocessed_bytes
+}
+
+pub fn md_padding_64(message_length: usize, endian: Endian) -> Vec<u8> {
+    md_padding(64, message_length, endian)
+}
+
+pub fn md_padding_128(message_length: usize, endian: Endian) -> Vec<u8> {
+    md_padding(128, message_length, endian)
 }
 
 pub mod md4 {
@@ -87,7 +102,11 @@ pub mod md4 {
         let mut d: u32 = iv.3;
 
         let bytes = message.as_bytes();
-        let processed = [bytes, md_padding(total_length, Endian::Little).as_slice()].concat();
+        let processed = [
+            bytes,
+            md_padding_64(total_length, Endian::Little).as_slice(),
+        ]
+        .concat();
 
         for chunk in processed.chunks(64) {
             let mut extended_words: [u32; 16] = [0; 16];
@@ -205,7 +224,7 @@ pub mod sha1 {
         let mut h4: u32 = iv.4;
 
         let bytes = message.as_bytes();
-        let processed = [bytes, md_padding(total_length, Endian::Big).as_slice()].concat();
+        let processed = [bytes, md_padding_64(total_length, Endian::Big).as_slice()].concat();
 
         for chunk in processed.chunks(64) {
             let mut extended_words: [u32; 80] = [0; 80];
@@ -338,6 +357,15 @@ mod tests {
             "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn\
             hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu",
         );
+        let edge_case_output = sha1(
+            [
+                99, 26, 143, 85, 115, 125, 249, 19, 75, 135, 222, 119, 109, 98, 105, 96, 2, 41,
+                217, 139, 169, 160, 123, 50, 113, 131, 231, 95, 116, 91, 204, 125, 57, 255, 248,
+                23, 109, 181, 125, 51, 155, 185, 229, 133, 69, 150, 225, 19, 208, 36, 183, 214, 2,
+                145, 252,
+            ]
+            .as_slice(),
+        );
 
         let expected_empty_output: [u8; 20] = [
             0xDA, 0x39, 0xA3, 0xEE, 0x5E, 0x6B, 0x4B, 0x0D, 0x32, 0x55, 0xBF, 0xEF, 0x95, 0x60,
@@ -355,11 +383,16 @@ mod tests {
             0xA4, 0x9B, 0x24, 0x46, 0xA0, 0x2C, 0x64, 0x5B, 0xF4, 0x19, 0xF9, 0x95, 0xB6, 0x70,
             0x91, 0x25, 0x3A, 0x04, 0xA2, 0x59,
         ];
+        let expected_edge_case_output: [u8; 20] = [
+            0x03, 0x17, 0xE3, 0x8D, 0x99, 0xCD, 0xBA, 0x10, 0xF6, 0x05, 0x77, 0x6B, 0xF3, 0xCF,
+            0xCD, 0x89, 0xBC, 0xDE, 0x76, 0xBB,
+        ];
 
         assert_eq!(empty_output, expected_empty_output);
         assert_eq!(dog_output, expected_dog_output);
         assert_eq!(cog_output, expected_cog_output);
         assert_eq!(long_output, expected_long_output);
+        assert_eq!(edge_case_output, expected_edge_case_output);
     }
 
     #[test]
@@ -381,6 +414,12 @@ mod tests {
         let a_output = md4("a");
         let medium_output = md4("abcdefghijklmnopqrstuvwxyz");
         let long_output = md4("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
+        let edge_case_output = md4([
+            99, 26, 143, 85, 115, 125, 249, 19, 75, 135, 222, 119, 109, 98, 105, 96, 2, 41, 217,
+            139, 169, 160, 123, 50, 113, 131, 231, 95, 116, 91, 204, 125, 57, 255, 248, 23, 109,
+            181, 125, 51, 155, 185, 229, 133, 69, 150, 225, 19, 208, 36, 183, 214, 2, 145, 252,
+        ]
+        .as_slice());
 
         let expected_empty_output: [u8; 16] = [
             0x31, 0xD6, 0xCF, 0xE0, 0xD1, 0x6A, 0xE9, 0x31, 0xB7, 0x3C, 0x59, 0xD7, 0xE0, 0xC0,
@@ -398,10 +437,15 @@ mod tests {
             0x04, 0x3F, 0x85, 0x82, 0xF2, 0x41, 0xDB, 0x35, 0x1C, 0xE6, 0x27, 0xE1, 0x53, 0xE7,
             0xF0, 0xE4,
         ];
+        let expected_edge_case_output: [u8; 16] = [
+            0x67, 0x04, 0xB8, 0x49, 0x3D, 0xDC, 0x39, 0x94, 0x82, 0xF0, 0x48, 0x5F, 0x73, 0x1E,
+            0x64, 0x63,
+        ];
 
         assert_eq!(empty_output, expected_empty_output);
         assert_eq!(a_output, expected_a_output);
         assert_eq!(medium_output, expected_medium_output);
         assert_eq!(long_output, expected_long_output);
+        assert_eq!(edge_case_output, expected_edge_case_output);
     }
 }

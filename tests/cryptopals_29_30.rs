@@ -30,7 +30,7 @@ fn challenge_29() {
     let mut found_match = false;
     for i in 1..40 {
         // I know the message but I don't know the secret key.
-        let glue_padding = md_padding(i + message.len(), Endian::Big);
+        let glue_padding = md_padding_64(i + message.len(), Endian::Big);
         let total_length = i + message.len() + glue_padding.len() + attacker_message.len();
         attacker_mac = sha1::core(attacker_message, total_length, iv);
 
@@ -86,7 +86,7 @@ fn challenge_30() {
     let mut found_match = false;
     for i in 1..40 {
         // I know the message but I don't know the secret key.
-        let glue_padding = md_padding(i + message.len(), Endian::Little);
+        let glue_padding = md_padding_64(i + message.len(), Endian::Little);
         let total_length = i + message.len() + glue_padding.len() + attacker_message.len();
         attacker_mac = md4::core(attacker_message, total_length, iv);
 
