@@ -9,7 +9,7 @@ brykto (broken crypto)
      `""^""'                    ?o___oP'
 ```
 
-> This crate is for educational purposes only. It's a homegrown rewrite of several cryptographic libraries and protocols that should **NOT** be used in production.
+> 🚧 This crate is for educational purposes only. It's a homegrown rewrite of several cryptographic libraries and protocols that should **NOT** be used in production. 🚧
 
 ## Why?
 As the name implies, this is a broken cryptography crate. Its aim is to tear apart cryptography libraries and peek inside. Exposing the [blackbox](https://en.wikipedia.org/wiki/Black_box). Over time, the aim is to implement the most widely used algorithms and some esoteric ones as well.
