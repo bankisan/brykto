@@ -1,26 +1,6 @@
 // TODO: Implement sha2.
+use crate::common::{AsBytes, Endian};
 use sha2::{Digest, Sha512};
-
-pub trait AsBytes: Copy {
-    fn as_bytes(&self) -> &[u8];
-}
-
-impl AsBytes for &str {
-    fn as_bytes(&self) -> &[u8] {
-        return (*self).as_bytes();
-    }
-}
-
-impl AsBytes for &[u8] {
-    fn as_bytes(&self) -> &[u8] {
-        return *self;
-    }
-}
-
-pub enum Endian {
-    Big,
-    Little,
-}
 
 fn md_padding(block_size: usize, message_length: usize, endian: Endian) -> Vec<u8> {
     // Message length is in bytes.

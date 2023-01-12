@@ -1,3 +1,4 @@
+use brykto::common::*;
 use brykto::hasher::*;
 
 #[test]
