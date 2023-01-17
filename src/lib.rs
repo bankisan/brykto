@@ -7,3 +7,4 @@ pub mod block;
 pub mod common;
 pub mod hasher;
 pub mod rand;
+pub mod math;
